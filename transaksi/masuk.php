@@ -2,17 +2,15 @@
 require_once '../includes/header.php';
 require_once '../config/database.php';
 
-// Admin & Petugas boleh akses, Owner dilarang
 if ($_SESSION['role'] === 'owner') {
     echo "<script>alert('Akses ditolak!'); window.location='".$base_url."index.php';</script>";
     exit;
 }
 
 $pdo = getKoneksi($_SESSION['role']);
-$pesan = '';
-$tipe_pesan = '';
+$pesan = ''; $tipe_pesan = '';
+$struk_masuk = null; // Buat nampilin modal tiket
 
-// Proses Tambah Transaksi Masuk (Input Plat Bebas + Warna/Pemilik)
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $plat_nomor = strtoupper(trim($_POST['plat_nomor']));
     $jenis_kendaraan = $_POST['jenis_kendaraan'];
@@ -24,7 +22,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $id_user = $_SESSION['id_user'];
 
     try {
-        // 1. Cek kapasitas area dulu
         $stmt_cek = $pdo->prepare("SELECT kapasitas, terisi FROM tb_area_parkir WHERE id_area = ?");
         $stmt_cek->execute([$id_area]);
         $area = $stmt_cek->fetch();
@@ -33,35 +30,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pesan = "Gagal! Area parkir sudah penuh.";
             $tipe_pesan = "danger";
         } else {
-            // 2. Cek apakah plat nomor sudah ada
             $stmt_plat = $pdo->prepare("SELECT id_kendaraan FROM tb_kendaraan WHERE plat_nomor = ?");
             $stmt_plat->execute([$plat_nomor]);
             $kendaraan_ada = $stmt_plat->fetch();
 
             if ($kendaraan_ada) {
                 $id_kendaraan = $kendaraan_ada['id_kendaraan'];
-                // Opsional: Kalau data warna/pemilik baru diisi, bisa diupdate (tapi kita skip dulu biar aman)
             } else {
-                // Kalau belum ada, daftarin otomatis beserta warna & pemilik
                 $sql_insert_kendaraan = "INSERT INTO tb_kendaraan (plat_nomor, jenis_kendaraan, warna, pemilik, id_user) VALUES (?, ?, ?, ?, ?)";
                 $pdo->prepare($sql_insert_kendaraan)->execute([$plat_nomor, $jenis_kendaraan, $warna, $pemilik, $id_user]);
                 $id_kendaraan = $pdo->lastInsertId();
             }
 
-            // 3. Insert ke tb_transaksi
-            $sql_trx = "INSERT INTO tb_transaksi (id_kendaraan, waktu_masuk, id_tarif, status, id_user, id_area) VALUES (?, ?, ?, 'masuk', ?, ?)";
-            $pdo->prepare($sql_trx)->execute([$id_kendaraan, $waktu_masuk, $id_tarif, $id_user, $id_area]);
+            // BIKIN KODE TIKET UNIK (TKT-XXXX)
+            $kode_tiket = "TKT-" . strtoupper(substr(md5(uniqid(mt_rand(), true)), 0, 6));
 
-            // 4. Update kapasitas area
+            // Insert Transaksi + Kode Tiket
+            $sql_trx = "INSERT INTO tb_transaksi (kode_tiket, id_kendaraan, waktu_masuk, id_tarif, status, id_user, id_area) VALUES (?, ?, ?, ?, 'masuk', ?, ?)";
+            $pdo->prepare($sql_trx)->execute([$kode_tiket, $id_kendaraan, $waktu_masuk, $id_tarif, $id_user, $id_area]);
+
             $pdo->prepare("UPDATE tb_area_parkir SET terisi = terisi + 1 WHERE id_area = ?")->execute([$id_area]);
 
-            // 5. Log
             $log = $pdo->prepare("INSERT INTO tb_log_aktivitas (id_user, aktivitas) VALUES (?, ?)");
-            $log->execute([$id_user, "Kendaraan masuk ($plat_nomor) di Area ID: $id_area"]);
+            $log->execute([$id_user, "Kendaraan masuk ($plat_nomor) | Tiket: $kode_tiket"]);
 
-            $pesan = "Transaksi masuk untuk <b>$plat_nomor</b> berhasil dicatat!";
+            // Siapin data buat modal struk masuk
+            $struk_masuk = [
+                'kode' => $kode_tiket,
+                'plat' => $plat_nomor,
+                'area' => $pdo->query("SELECT nama_area FROM tb_area_parkir WHERE id_area = $id_area")->fetchColumn(),
+                'masuk' => $waktu_masuk
+            ];
+            $pesan = "Transaksi masuk berhasil!";
             $tipe_pesan = "success";
-            echo "<meta http-equiv='refresh' content='2;url=masuk.php'>";
         }
     } catch (Exception $e) {
         $pesan = "Terjadi kesalahan: " . $e->getMessage();
@@ -73,18 +74,9 @@ $tarifs = $pdo->query("SELECT * FROM tb_tarif ORDER BY jenis_kendaraan ASC")->fe
 $areas = $pdo->query("SELECT * FROM tb_area_parkir WHERE terisi < kapasitas ORDER BY nama_area ASC")->fetchAll();
 
 if ($_SESSION['role'] === 'admin') {
-    $sql_trx = "SELECT t.*, k.plat_nomor, k.jenis_kendaraan, k.warna, k.pemilik, a.nama_area, u.nama_lengkap 
-                FROM tb_transaksi t
-                JOIN tb_kendaraan k ON t.id_kendaraan = k.id_kendaraan
-                JOIN tb_area_parkir a ON t.id_area = a.id_area
-                JOIN tb_user u ON t.id_user = u.id_user
-                WHERE t.status = 'masuk' ORDER BY t.id_parkir DESC";
+    $sql_trx = "SELECT t.*, k.plat_nomor, a.nama_area, u.nama_lengkap FROM tb_transaksi t JOIN tb_kendaraan k ON t.id_kendaraan = k.id_kendaraan JOIN tb_area_parkir a ON t.id_area = a.id_area JOIN tb_user u ON t.id_user = u.id_user WHERE t.status = 'masuk' ORDER BY t.id_parkir DESC";
 } else {
-    $sql_trx = "SELECT t.*, k.plat_nomor, k.jenis_kendaraan, k.warna, k.pemilik, a.nama_area 
-                FROM tb_transaksi t
-                JOIN tb_kendaraan k ON t.id_kendaraan = k.id_kendaraan
-                JOIN tb_area_parkir a ON t.id_area = a.id_area
-                WHERE t.status = 'masuk' ORDER BY t.id_parkir DESC";
+    $sql_trx = "SELECT t.*, k.plat_nomor, a.nama_area FROM tb_transaksi t JOIN tb_kendaraan k ON t.id_kendaraan = k.id_kendaraan JOIN tb_area_parkir a ON t.id_area = a.id_area WHERE t.status = 'masuk' ORDER BY t.id_parkir DESC";
 }
 $transaksi_aktif = $pdo->query($sql_trx)->fetchAll();
 ?>
@@ -98,39 +90,27 @@ $transaksi_aktif = $pdo->query($sql_trx)->fetchAll();
 <?php endif; ?>
 
 <div class="row g-4">
-    <!-- Form Input Masuk -->
     <div class="col-md-5">
         <div class="card card-elegan p-4">
             <h5 class="fw-bold mb-3">Input Kendaraan Masuk</h5>
             <form method="POST">
                 <div class="mb-3">
                     <label class="form-label fw-semibold">Plat Nomor <span class="text-danger">*</span></label>
-                    <input type="text" name="plat_nomor" class="form-control text-uppercase" placeholder="Contoh: B 1234 XYZ" required autofocus>
+                    <input type="text" name="plat_nomor" class="form-control text-uppercase" placeholder="B 1234 XYZ" required autofocus>
                 </div>
-                
-                <!-- TAMBAHAN KOLOM WARNA & PEMILIK -->
                 <div class="row mb-3">
-                    <div class="col-6">
-                        <label class="form-label fw-semibold">Warna</label>
-                        <input type="text" name="warna" class="form-control" placeholder="Contoh: Hitam">
-                    </div>
-                    <div class="col-6">
-                        <label class="form-label fw-semibold">Pemilik</label>
-                        <input type="text" name="pemilik" class="form-control" placeholder="Nama pemilik">
-                    </div>
+                    <div class="col-6"><input type="text" name="warna" class="form-control" placeholder="Warna"></div>
+                    <div class="col-6"><input type="text" name="pemilik" class="form-control" placeholder="Pemilik"></div>
                 </div>
-
                 <div class="mb-3">
-                    <label class="form-label fw-semibold">Jenis Kendaraan <span class="text-danger">*</span></label>
                     <select name="jenis_kendaraan" class="form-select" required>
-                        <option value="">-- Pilih Jenis --</option>
+                        <option value="">-- Jenis Kendaraan --</option>
                         <option value="motor">Motor</option>
                         <option value="mobil">Mobil</option>
                         <option value="lainnya">Lainnya</option>
                     </select>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label fw-semibold">Pilih Tarif <span class="text-danger">*</span></label>
                     <select name="id_tarif" class="form-select" required>
                         <option value="">-- Pilih Tarif --</option>
                         <?php foreach ($tarifs as $t): ?>
@@ -139,7 +119,6 @@ $transaksi_aktif = $pdo->query($sql_trx)->fetchAll();
                     </select>
                 </div>
                 <div class="mb-4">
-                    <label class="form-label fw-semibold">Pilih Area Parkir (Tersedia) <span class="text-danger">*</span></label>
                     <select name="id_area" class="form-select" required>
                         <option value="">-- Pilih Area --</option>
                         <?php foreach ($areas as $a): ?>
@@ -151,40 +130,20 @@ $transaksi_aktif = $pdo->query($sql_trx)->fetchAll();
             </form>
         </div>
     </div>
-
-    <!-- Tabel Kendaraan Sedang Parkir -->
     <div class="col-md-7">
         <div class="card card-elegan p-4">
             <h5 class="fw-bold mb-3">Kendaraan Sedang Parkir</h5>
             <div class="table-responsive">
-                <table id="tabelMasuk" class="table table-hover align-middle w-100">
-                    <thead>
-                        <tr>
-                            <th>No</th>
-                            <th>Plat Nomor</th>
-                            <th>Jenis</th>
-                            <th>Warna</th>
-                            <th>Pemilik</th>
-                            <th>Area</th>
-                            <th>Waktu Masuk</th>
-                            <?php if ($_SESSION['role'] === 'admin'): ?>
-                                <th>Petugas</th>
-                            <?php endif; ?>
-                        </tr>
-                    </thead>
+                <table class="table table-hover align-middle w-100" id="tabelMasuk">
+                    <thead><tr><th>No</th><th>Kode</th><th>Plat</th><th>Area</th><th>Masuk</th></tr></thead>
                     <tbody>
                         <?php foreach ($transaksi_aktif as $index => $trx): ?>
                             <tr>
                                 <td><?= $index + 1 ?></td>
+                                <td class="fw-bold text-primary"><?= $trx['kode_tiket'] ?></td>
                                 <td class="fw-bold"><?= htmlspecialchars($trx['plat_nomor']) ?></td>
-                                <td class="text-capitalize"><?= htmlspecialchars($trx['jenis_kendaraan']) ?></td>
-                                <td><?= htmlspecialchars($trx['warna'] ?? '-') ?></td>
-                                <td><?= htmlspecialchars($trx['pemilik'] ?? '-') ?></td>
                                 <td><span class="badge bg-secondary"><?= htmlspecialchars($trx['nama_area']) ?></span></td>
-                                <td><?= date('d-m-Y H:i', strtotime($trx['waktu_masuk'])) ?></td>
-                                <?php if ($_SESSION['role'] === 'admin'): ?>
-                                    <td><?= htmlspecialchars($trx['nama_lengkap']) ?></td>
-                                <?php endif; ?>
+                                <td><?= date('d-m H:i', strtotime($trx['waktu_masuk'])) ?></td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
@@ -193,5 +152,48 @@ $transaksi_aktif = $pdo->query($sql_trx)->fetchAll();
         </div>
     </div>
 </div>
+
+<!-- MODAL STRUK MASUK (TIKET) -->
+<?php if ($struk_masuk): ?>
+<div class="modal fade show" id="modalTiket" tabindex="-1" style="display: block; background: rgba(0,0,0,0.5);" aria-modal="true" role="dialog">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 20px; border: none;">
+            <div class="modal-body p-4 text-center">
+                <h4 class="fw-bold mb-1 text-primary">Tiket Parkir</h4>
+                <p class="text-muted small mb-4">Simpan struk ini atau scan QR saat keluar</p>
+
+                <div class="text-start p-3 rounded-3 mb-3" style="background: #f8fafc; border: 1px dashed #cbd5e1;">
+                    <div class="text-center mb-3">
+                        <canvas id="qrcode" class="mb-2"></canvas>
+                        <div class="fw-bold fs-4 text-dark" id="kode_tiket_text"><?= $struk_masuk['kode'] ?></div>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2"><span class="text-muted">Plat Nomor</span><span class="fw-bold"><?= $struk_masuk['plat'] ?></span></div>
+                    <div class="d-flex justify-content-between mb-2"><span class="text-muted">Area</span><span class="fw-semibold"><?= $struk_masuk['area'] ?></span></div>
+                    <div class="d-flex justify-content-between"><span class="text-muted">Waktu Masuk</span><span><?= date('d-m-Y H:i', strtotime($struk_masuk['masuk'])) ?></span></div>
+                </div>
+
+                <button type="button" class="btn btn-primary w-100 mt-2 py-2" onclick="window.location.href='masuk.php'">
+                    <i class="bi bi-printer"></i> Cetak & Tutup
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SCRIPT BUAT GENERATE QR CODE -->
+<script src="<?= $base_url ?>assets/js/qrcode.min.js"></script>
+<script>
+    // Generate QR Code otomatis dari kode tiket
+    new QRCode(document.getElementById("qrcode"), {
+        text: "<?= $struk_masuk['kode'] ?>", // Isinya kode tiket
+        width: 150,
+        height: 150,
+        colorDark : "#000000",
+        colorLight : "#ffffff",
+        correctLevel : QRCode.CorrectLevel.H
+    });
+    document.body.style.overflow = 'hidden';
+</script>
+<?php endif; ?>
 
 <?php require_once '../includes/footer.php'; ?>
