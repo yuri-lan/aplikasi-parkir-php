@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Oct 19, 2026 at 08:26 AM
+-- Generation Time: Oct 21, 2026 at 07:44 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -43,7 +43,7 @@ CREATE TABLE `tb_area_parkir` (
 
 INSERT INTO `tb_area_parkir` (`id_area`, `nama_area`, `kapasitas`, `terisi`) VALUES
 (1, 'Area A - Motor', 50, 2),
-(2, 'Area B - Mobil', 30, 2),
+(2, 'Area B - Mobil', 30, 1),
 (3, 'Area C - Kendaraan berat', 30, 1);
 
 -- --------------------------------------------------------
@@ -73,7 +73,8 @@ INSERT INTO `tb_kendaraan` (`id_kendaraan`, `plat_nomor`, `jenis_kendaraan`, `wa
 (4, 'A 5690 JK', 'mobil', 'MERAHHHHH', 'MARAAAAAAAAAAAAAAA', 2),
 (5, 'B 8972 NI', 'motor', 'Biruuu', 'Amanda Manopo', 2),
 (6, 'KL 6765 HJ', 'lainnya', 'Kuning', 'Haji Ahmaddahlan', 2),
-(7, 'L 9874 UI', 'mobil', 'Cyan muda', 'Putri jalan pepaya', 2);
+(7, 'L 9874 UI', 'mobil', 'Cyan muda', 'Putri jalan pepaya', 2),
+(8, 'J 5869 LP', 'mobil', 'merah', 'andiya', 2);
 
 -- --------------------------------------------------------
 
@@ -157,7 +158,15 @@ INSERT INTO `tb_log_aktivitas` (`id_log`, `id_user`, `aktivitas`, `waktu_aktivit
 (36, 1, 'Proses keluar L 9874 UI, Biaya: Rp 5000', '2026-10-19 13:08:17'),
 (37, 1, 'Kendaraan masuk (L 9874 UI) di Area ID: 2', '2026-10-19 13:08:35'),
 (38, 2, 'Login ke sistem', '2026-10-19 13:13:21'),
-(39, 1, 'Login ke sistem', '2026-10-19 13:22:00');
+(39, 1, 'Login ke sistem', '2026-10-19 13:22:00'),
+(40, 1, 'Login ke sistem', '2026-10-21 06:51:44'),
+(41, 2, 'Login ke sistem', '2026-10-21 06:51:57'),
+(42, 1, 'Login ke sistem', '2026-10-21 08:06:03'),
+(43, 1, 'Login ke sistem', '2026-10-21 08:07:31'),
+(44, 2, 'Login ke sistem', '2026-10-21 10:43:21'),
+(45, 2, 'Kendaraan masuk (J 5869 LP) | Tiket: TKT-02AF84', '2026-10-21 10:43:58'),
+(46, 2, 'Proses keluar J 5869 LP | Bayar: qris | Total: Rp 5000', '2026-10-21 10:45:12'),
+(47, 2, 'Proses keluar L 9874 UI | Bayar: cash | Total: Rp 96000', '2026-10-21 12:41:24');
 
 -- --------------------------------------------------------
 
@@ -190,6 +199,7 @@ INSERT INTO `tb_tarif` (`id_tarif`, `jenis_kendaraan`, `tarif_per_jam`) VALUES
 DROP TABLE IF EXISTS `tb_transaksi`;
 CREATE TABLE `tb_transaksi` (
   `id_parkir` int(11) NOT NULL,
+  `kode_tiket` varchar(20) DEFAULT NULL,
   `id_kendaraan` int(11) NOT NULL,
   `waktu_masuk` datetime NOT NULL,
   `waktu_keluar` datetime DEFAULT NULL,
@@ -197,6 +207,7 @@ CREATE TABLE `tb_transaksi` (
   `durasi_jam` int(5) DEFAULT NULL,
   `biaya_total` decimal(10,0) DEFAULT NULL,
   `status` enum('masuk','keluar') NOT NULL DEFAULT 'masuk',
+  `metode_bayar` enum('cash','qris','belum') DEFAULT 'belum',
   `id_user` int(11) NOT NULL,
   `id_area` int(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -205,15 +216,16 @@ CREATE TABLE `tb_transaksi` (
 -- Dumping data for table `tb_transaksi`
 --
 
-INSERT INTO `tb_transaksi` (`id_parkir`, `id_kendaraan`, `waktu_masuk`, `waktu_keluar`, `id_tarif`, `durasi_jam`, `biaya_total`, `status`, `id_user`, `id_area`) VALUES
-(1, 1, '2026-10-19 08:38:47', NULL, 1, NULL, NULL, 'masuk', 2, 1),
-(2, 3, '2026-10-19 05:48:49', '2026-10-19 05:57:24', 1, 1, 2000, 'keluar', 2, 2),
-(3, 4, '2026-10-19 05:55:44', '2026-10-19 06:13:41', 2, 1, 5000, 'keluar', 2, 1),
-(4, 4, '2026-10-19 06:14:01', NULL, 1, NULL, NULL, 'masuk', 2, 1),
-(5, 5, '2026-10-19 06:14:56', NULL, 2, NULL, NULL, 'masuk', 2, 2),
-(6, 6, '2026-10-19 08:00:44', NULL, 3, NULL, NULL, 'masuk', 2, 3),
-(7, 7, '2026-10-19 13:04:52', '2026-10-19 13:08:17', 2, 1, 5000, 'keluar', 2, 2),
-(8, 7, '2026-10-19 13:08:35', NULL, 1, NULL, NULL, 'masuk', 1, 2);
+INSERT INTO `tb_transaksi` (`id_parkir`, `kode_tiket`, `id_kendaraan`, `waktu_masuk`, `waktu_keluar`, `id_tarif`, `durasi_jam`, `biaya_total`, `status`, `metode_bayar`, `id_user`, `id_area`) VALUES
+(1, NULL, 1, '2026-10-19 08:38:47', NULL, 1, NULL, NULL, 'masuk', 'belum', 2, 1),
+(2, NULL, 3, '2026-10-19 05:48:49', '2026-10-19 05:57:24', 1, 1, 2000, 'keluar', 'belum', 2, 2),
+(3, NULL, 4, '2026-10-19 05:55:44', '2026-10-19 06:13:41', 2, 1, 5000, 'keluar', 'belum', 2, 1),
+(4, NULL, 4, '2026-10-19 06:14:01', NULL, 1, NULL, NULL, 'masuk', 'belum', 2, 1),
+(5, NULL, 5, '2026-10-19 06:14:56', NULL, 2, NULL, NULL, 'masuk', 'belum', 2, 2),
+(6, NULL, 6, '2026-10-19 08:00:44', NULL, 3, NULL, NULL, 'masuk', 'belum', 2, 3),
+(7, NULL, 7, '2026-10-19 13:04:52', '2026-10-19 13:08:17', 2, 1, 5000, 'keluar', 'belum', 2, 2),
+(8, NULL, 7, '2026-10-19 13:08:35', '2026-10-21 12:41:24', 1, 48, 96000, 'keluar', 'cash', 1, 2),
+(9, 'TKT-02AF84', 8, '2026-10-21 10:43:58', '2026-10-21 10:45:12', 2, 1, 5000, 'keluar', 'qris', 2, 2);
 
 -- --------------------------------------------------------
 
@@ -243,34 +255,15 @@ INSERT INTO `tb_user` (`id_user`, `nama_lengkap`, `username`, `password`, `role`
 -- --------------------------------------------------------
 
 --
--- Stand-in structure for view `v_rekap_transaksi`
--- (See below for the actual view)
---
-DROP VIEW IF EXISTS `v_rekap_transaksi`;
-CREATE TABLE `v_rekap_transaksi` (
-`id_parkir` int(11)
-,`plat_nomor` varchar(15)
-,`jenis_kendaraan` varchar(20)
-,`nama_area` varchar(50)
-,`waktu_masuk` datetime
-,`waktu_keluar` datetime
-,`durasi_jam` int(5)
-,`biaya_total` decimal(10,0)
-,`status` enum('masuk','keluar')
-);
-
--- --------------------------------------------------------
-
---
 -- Stand-in structure for view `v_status_area`
 -- (See below for the actual view)
 --
 DROP VIEW IF EXISTS `v_status_area`;
 CREATE TABLE `v_status_area` (
-`id_area` int(11)
-,`nama_area` varchar(50)
-,`kapasitas` int(5)
-,`terisi` int(5)
+`id_area` int(1)
+,`nama_area` int(1)
+,`kapasitas` int(1)
+,`terisi` int(1)
 );
 
 -- --------------------------------------------------------
@@ -281,18 +274,8 @@ CREATE TABLE `v_status_area` (
 --
 DROP VIEW IF EXISTS `v_total_kendaraan`;
 CREATE TABLE `v_total_kendaraan` (
-`total` bigint(21)
+`total` int(1)
 );
-
--- --------------------------------------------------------
-
---
--- Structure for view `v_rekap_transaksi`
---
-DROP TABLE IF EXISTS `v_rekap_transaksi`;
-
-DROP VIEW IF EXISTS `v_rekap_transaksi`;
-CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v_rekap_transaksi`  AS SELECT `t`.`id_parkir` AS `id_parkir`, `k`.`plat_nomor` AS `plat_nomor`, `k`.`jenis_kendaraan` AS `jenis_kendaraan`, `a`.`nama_area` AS `nama_area`, `t`.`waktu_masuk` AS `waktu_masuk`, `t`.`waktu_keluar` AS `waktu_keluar`, `t`.`durasi_jam` AS `durasi_jam`, `t`.`biaya_total` AS `biaya_total`, `t`.`status` AS `status` FROM ((`tb_transaksi` `t` join `tb_kendaraan` `k` on(`k`.`id_kendaraan` = `t`.`id_kendaraan`)) join `tb_area_parkir` `a` on(`a`.`id_area` = `t`.`id_area`)) ;
 
 -- --------------------------------------------------------
 
@@ -302,7 +285,7 @@ CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW 
 DROP TABLE IF EXISTS `v_status_area`;
 
 DROP VIEW IF EXISTS `v_status_area`;
-CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v_status_area`  AS SELECT `tb_area_parkir`.`id_area` AS `id_area`, `tb_area_parkir`.`nama_area` AS `nama_area`, `tb_area_parkir`.`kapasitas` AS `kapasitas`, `tb_area_parkir`.`terisi` AS `terisi` FROM `tb_area_parkir` ;
+CREATE ALGORITHM=UNDEFINED DEFINER=`admin_parkir`@`localhost` SQL SECURITY DEFINER VIEW `v_status_area`  AS SELECT 1 AS `id_area`, 1 AS `nama_area`, 1 AS `kapasitas`, 1 AS `terisi` ;
 
 -- --------------------------------------------------------
 
@@ -312,7 +295,7 @@ CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW 
 DROP TABLE IF EXISTS `v_total_kendaraan`;
 
 DROP VIEW IF EXISTS `v_total_kendaraan`;
-CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v_total_kendaraan`  AS SELECT count(0) AS `total` FROM `tb_kendaraan` ;
+CREATE ALGORITHM=UNDEFINED DEFINER=`admin_parkir`@`localhost` SQL SECURITY DEFINER VIEW `v_total_kendaraan`  AS SELECT 1 AS `total` ;
 
 --
 -- Indexes for dumped tables
@@ -357,6 +340,7 @@ ALTER TABLE `tb_tarif`
 --
 ALTER TABLE `tb_transaksi`
   ADD PRIMARY KEY (`id_parkir`),
+  ADD UNIQUE KEY `kode_tiket` (`kode_tiket`),
   ADD KEY `tb_transaksi_id_tarif_foreign` (`id_tarif`),
   ADD KEY `tb_transaksi_id_area_foreign` (`id_area`),
   ADD KEY `tb_transaksi_id_kendaraan_foreign` (`id_kendaraan`),
@@ -383,7 +367,7 @@ ALTER TABLE `tb_area_parkir`
 -- AUTO_INCREMENT for table `tb_kendaraan`
 --
 ALTER TABLE `tb_kendaraan`
-  MODIFY `id_kendaraan` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `id_kendaraan` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- AUTO_INCREMENT for table `tb_laporan`
@@ -395,7 +379,7 @@ ALTER TABLE `tb_laporan`
 -- AUTO_INCREMENT for table `tb_log_aktivitas`
 --
 ALTER TABLE `tb_log_aktivitas`
-  MODIFY `id_log` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=40;
+  MODIFY `id_log` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=48;
 
 --
 -- AUTO_INCREMENT for table `tb_tarif`
@@ -407,7 +391,7 @@ ALTER TABLE `tb_tarif`
 -- AUTO_INCREMENT for table `tb_transaksi`
 --
 ALTER TABLE `tb_transaksi`
-  MODIFY `id_parkir` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+  MODIFY `id_parkir` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
 
 --
 -- AUTO_INCREMENT for table `tb_user`
