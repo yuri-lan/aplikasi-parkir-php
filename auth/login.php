@@ -177,7 +177,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             margin: 10px 0;
             text-shadow: 0 10px 25px rgba(0,0,0,0.3);
             /* Biar angkanya agak nyala */
-            background: -webkit-linear-gradient(#a7f3d0, #10b981);
+            background: -webkit-linear-gradient(#e2e8f0, #faf8f8);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }

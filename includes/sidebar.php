@@ -21,6 +21,7 @@ function isActive($page) {
     <a href="<?= $base_url ?>laporan/laporan.php" class="<?= isActive('laporan.php') ?>"><i class="bi bi-file-earmark-bar-graph-fill"></i> Laporan</a>
     <a href="<?= $base_url ?>master/log.php" class="<?= isActive('log.php') ?>"><i class="bi bi-clock-history"></i> Log Aktivitas</a>
     <a href="<?= $base_url ?>chat/chat.php" class="<?= isActive('chat.php') ?>"><i class="bi bi-chat-dots-fill"></i> Chat / Laporan</a>
+    <a href="<?= $base_url ?>pengaturan/backup_restore.php" class="<?= isActive('backup_restore.php') ?>"><i class="bi bi-hdd-network-fill"></i> Backup & Restore</a>   
 
 <?php elseif ($role === 'petugas'): ?>
     <a href="<?= $base_url ?>index.php" class="<?= isActive('index.php') ?>"><i class="bi bi-grid-1x2-fill"></i> Dashboard</a>
